@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { providers, formatFCFA, type Provider } from "@/lib/providers";
 
@@ -79,8 +79,131 @@ function ProvidersPage() {
         )}
       </section>
 
+      <AiAgentConsult />
+
       {active && <ProviderDialog p={active} onClose={() => setActive(null)} />}
     </SiteLayout>
+  );
+}
+
+function AiAgentConsult() {
+  const [question, setQuestion] = useState("");
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = question.trim();
+    if (!q) return;
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const res = await fetch("https://api.dify.ai/v1/workflows/run", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          Authorization: "Bearer app-I9QEqnC78UBztsFMMaPTFp7I",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: { query: q },
+          response_mode: "blocking",
+          user: "user-galleexpress-" + Date.now(),
+        }),
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        throw new Error("Service temporairement indisponible");
+      }
+
+      const data = await res.json();
+      const outputs = data?.data?.outputs ?? null;
+      if (!outputs) {
+        throw new Error("Réponse invalide de l'agent");
+      }
+      setResult(outputs);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("La réponse prend trop de temps — réessayez");
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Service temporairement indisponible");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [question]);
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 pb-16">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-card md:p-8">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-lg text-primary-foreground">🤖</div>
+          <div>
+            <h2 className="text-lg font-bold text-secondary">Consultez notre agent IA</h2>
+            <p className="text-sm text-muted-foreground">Posez vos questions sur les prestataires et services disponibles.</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
+          <input
+            type="text"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Posez votre question sur les prestataires et services disponibles..."
+            className="h-12 flex-1 rounded-xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            disabled={loading}
+          />
+          <button
+            type="submit"
+            disabled={loading || !question.trim()}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+                Analyse en cours…
+              </>
+            ) : (
+              <>Demander à l'agent 🔧</>
+            )}
+          </button>
+        </form>
+
+        {error && (
+          <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+            {error}
+          </div>
+        )}
+
+        {result && (
+          <div className="mt-5 rounded-xl bg-muted/60 p-5">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Réponse de l'agent</p>
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+              {typeof result === "string"
+                ? result
+                : Object.entries(result).map(([key, value]) => (
+                    <div key={key} className="mb-2">
+                      <span className="font-semibold text-secondary">{key}:</span>{" "}
+                      <span className="text-muted-foreground">
+                        {typeof value === "string" ? value : JSON.stringify(value, null, 2)}
+                      </span>
+                    </div>
+                  ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -203,3 +326,4 @@ function Info({ label, value, icon }: { label: string; value: string; icon: stri
     </div>
   );
 }
+
