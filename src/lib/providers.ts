@@ -10,6 +10,8 @@ export type Provider = {
   reviews: number;
   description: string;
   emoji: string;
+  lat?: number;
+  lng?: number;
 };
 
 export const providers: Provider[] = [
@@ -25,6 +27,8 @@ export const providers: Provider[] = [
     reviews: 124,
     description: "Plombier expérimenté, dépannage urgent, installation sanitaire et réparation de fuites.",
     emoji: "🔧",
+    lat: 14.7131,
+    lng: -17.4420,
   },
   {
     id: "awa-electricite",
@@ -38,6 +42,8 @@ export const providers: Provider[] = [
     reviews: 87,
     description: "Électricienne certifiée, installation, mise aux normes et dépannage 7j/7.",
     emoji: "⚡",
+    lat: 14.7481,
+    lng: -17.4011,
   },
   {
     id: "cheikh-climatisation",
@@ -51,6 +57,8 @@ export const providers: Provider[] = [
     reviews: 56,
     description: "Installation, entretien et réparation de climatiseurs split et centralisés.",
     emoji: "❄️",
+    lat: 14.7710,
+    lng: -17.4060,
   },
   {
     id: "sokhna-menage-pro",
@@ -64,6 +72,8 @@ export const providers: Provider[] = [
     reviews: 213,
     description: "Service de ménage professionnel : nettoyage en profondeur, repassage et entretien.",
     emoji: "🧹",
+    lat: 14.7476,
+    lng: -17.4915,
   },
   {
     id: "abdou-peinture",
@@ -77,6 +87,8 @@ export const providers: Provider[] = [
     reviews: 92,
     description: "Peinture intérieure et extérieure, finitions décoratives et rénovation complète.",
     emoji: "🎨",
+    lat: 14.7130,
+    lng: -17.0115,
   },
   {
     id: "ibrahima-informatique",
@@ -90,6 +102,8 @@ export const providers: Provider[] = [
     reviews: 178,
     description: "Réparation PC et Mac, récupération de données, installation logicielle et formation.",
     emoji: "💻",
+    lat: 14.6643,
+    lng: -17.4486,
   },
 ];
 

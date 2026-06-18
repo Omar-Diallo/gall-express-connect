@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
+import { getUser, initSeedData } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -13,6 +14,10 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
+  useEffect(() => {
+    initSeedData();
+  }, []);
+
   return (
     <SiteLayout>
       <Hero />
@@ -23,11 +28,41 @@ function HomePage() {
 }
 
 function Hero() {
+  const user = typeof window !== 'undefined' ? getUser() : null;
+  const isClientLoggedIn = user?.role === 'client';
+  const fallingItems = [
+    { icon: '🔑', label: 'Clés' },
+    { icon: '🔨', label: 'Marteau' },
+    { icon: '🪛', label: 'Tournevis' },
+    { icon: '🧰', label: 'Trousse' },
+    { icon: '🪚', label: 'Scie' },
+    { icon: '🔩', label: 'Boulon' },
+    { icon: '🧲', label: 'Aimant' },
+    { icon: '🪝', label: 'Crochet' },
+  ];
+
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-background to-accent/10" />
       <div className="absolute -top-24 -right-24 -z-10 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
       <div className="absolute -bottom-32 -left-24 -z-10 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
+      <div className="hero-fall absolute inset-0 z-10 overflow-hidden pointer-events-none">
+        {fallingItems.map((item, index) => (
+          <span
+            key={`${item.label}-${index}`}
+            className="hero-fall-item"
+            style={{
+              left: `${6 + (index % 5) * 18}%`,
+              animationDelay: `${index * 0.3}s`,
+              animationDuration: `${5 + (index % 4) * 0.8}s`,
+              opacity: 0.95 - index * 0.06,
+            }}
+            aria-hidden="true"
+          >
+            {item.icon}
+          </span>
+        ))}
+      </div>
 
       <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
         <div className="mx-auto max-w-3xl text-center">
@@ -47,12 +82,14 @@ function Hero() {
             >
               Trouver un prestataire →
             </Link>
-            <Link
-              to="/contact"
-              className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-secondary transition hover:border-primary hover:text-primary"
-            >
-              Proposer mes services
-            </Link>
+            {!isClientLoggedIn && (
+              <Link
+                to="/proposer"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-secondary transition hover:border-primary hover:text-primary"
+              >
+                Proposer mes services
+              </Link>
+            )}
           </div>
         </div>
       </div>

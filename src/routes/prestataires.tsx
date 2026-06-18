@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useCallback } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
-import { providers, formatFCFA, type Provider } from "@/lib/providers";
+import { getAllServices, type Service as Provider } from "@/lib/services";
+import { formatFCFA } from "@/lib/providers";
+import { getUser, type Order } from "@/lib/auth";
+
+type Coordinates = {
+  lat: number;
+  lng: number;
+};
 
 export const Route = createFileRoute("/prestataires")({
   head: () => ({
@@ -20,9 +27,44 @@ function ProvidersPage() {
   const [filter, setFilter] = useState<Filter>("Tous");
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<Provider | null>(null);
+  const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [reservationMessage, setReservationMessage] = useState<string | null>(null);
+  const user = typeof window !== 'undefined' ? getUser() : null;
+
+  const locateUser = useCallback(() => {
+    if (!navigator.geolocation || !window.isSecureContext) {
+      setLocationError(
+        "La géolocalisation n'est pas disponible dans ce contexte. Vérifiez que vous êtes sur HTTPS et autorisez la localisation."
+      );
+      setLocating(false);
+      return;
+    }
+
+    setLocating(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocating(false);
+      },
+      () => {
+        setLocationError(
+          "Impossible de récupérer votre position. Vérifiez les permissions de géolocalisation et rechargez la page."
+        );
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
 
   const list = useMemo(() => {
-    return providers.filter((p) => {
+    return getAllServices().filter((p) => {
       const matchFilter = filter === "Tous" || p.category === filter;
       const q = query.trim().toLowerCase();
       const matchQuery = !q || p.name.toLowerCase().includes(q) || p.zone.toLowerCase().includes(q);
@@ -49,6 +91,33 @@ function ProvidersPage() {
             </div>
           </div>
 
+          <div className="mt-6 rounded-3xl border border-border bg-card p-5 text-sm text-secondary-foreground shadow-card sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold text-secondary">Comparer les prestataires à partir de votre position</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Activez la localisation pour voir la distance en km et une estimation du temps d'arrivée.
+              </p>
+              {userLocation && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Position détectée : {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                </p>
+              )}
+              {locationError && (
+                <p className="mt-2 text-sm text-destructive">{locationError}</p>
+              )}
+              {reservationMessage && (
+                <div className="mt-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">{reservationMessage}</div>
+              )}
+            </div>
+            <button
+              onClick={locateUser}
+              disabled={locating}
+              className="mt-4 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 sm:mt-0"
+            >
+              {locating ? "Localisation…" : "Localiser ma position"}
+            </button>
+          </div>
+
           <div className="mt-4 flex flex-wrap gap-2">
             {filters.map((f) => (
               <button
@@ -73,7 +142,7 @@ function ProvidersPage() {
         ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {list.map((p) => (
-              <ProviderCard key={p.id} p={p} onOpen={() => setActive(p)} />
+              <ProviderCard key={p.id} p={p} userLocation={userLocation} user={user} onOpen={() => setActive(p)} onReserve={() => createReservation(p)} />
             ))}
           </div>
         )}
@@ -81,7 +150,7 @@ function ProvidersPage() {
 
       <AiAgentConsult />
 
-      {active && <ProviderDialog p={active} onClose={() => setActive(null)} />}
+      {active && <ProviderDialog p={active} user={user} userLocation={userLocation} onClose={() => setActive(null)} onReserve={() => createReservation(active)} />}
     </SiteLayout>
   );
 }
@@ -220,7 +289,12 @@ function StatusDot({ available }: { available: boolean }) {
   );
 }
 
-function ProviderCard({ p, onOpen }: { p: Provider; onOpen: () => void }) {
+function ProviderCard({ p, userLocation, user, onOpen, onReserve }: { p: Provider; userLocation: Coordinates | null; user: { role: string; email: string } | null; onOpen: () => void; onReserve: () => void }) {
+  const distanceKm =
+    userLocation && p.lat !== undefined && p.lng !== undefined
+      ? getDistanceKm(userLocation, { lat: p.lat, lng: p.lng })
+      : null;
+
   return (
     <article className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-elegant">
       <div className="flex items-start justify-between gap-3">
@@ -240,6 +314,14 @@ function ProviderCard({ p, onOpen }: { p: Provider; onOpen: () => void }) {
         <div className="flex items-center gap-2 text-muted-foreground">
           <span>📍</span><span className="truncate">{p.zone}</span>
         </div>
+        {distanceKm !== null && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span>🚗</span>
+            <span>
+              {formatDistance(distanceKm)} · arrivée en ~{formatTravelTime(distanceKm)}
+            </span>
+          </div>
+        )}
         <div className="flex items-center gap-2 text-muted-foreground">
           <span>💰</span><span>À partir de <strong className="text-secondary">{formatFCFA(p.price)}</strong></span>
         </div>
@@ -250,7 +332,7 @@ function ProviderCard({ p, onOpen }: { p: Provider; onOpen: () => void }) {
         </div>
       </div>
 
-      <div className="mt-5 flex gap-2 pt-4 border-t border-border">
+      <div className="mt-5 flex flex-col gap-2 pt-4 border-t border-border sm:flex-row">
         <a
           href={`tel:${p.phone.replace(/\s/g, "")}`}
           className="flex-1 inline-flex h-10 items-center justify-center rounded-lg border border-border text-sm font-semibold text-secondary transition hover:border-primary hover:text-primary"
@@ -263,12 +345,25 @@ function ProviderCard({ p, onOpen }: { p: Provider; onOpen: () => void }) {
         >
           Voir profil
         </button>
+        {user?.role === 'client' && (
+          <button
+            onClick={onReserve}
+            className="flex-1 inline-flex h-10 items-center justify-center rounded-lg bg-secondary text-sm font-semibold text-secondary-foreground transition hover:opacity-90"
+          >
+            Réserver
+          </button>
+        )}
       </div>
     </article>
   );
 }
 
-function ProviderDialog({ p, onClose }: { p: Provider; onClose: () => void }) {
+function ProviderDialog({ p, userLocation, user, onClose, onReserve }: { p: Provider; userLocation: Coordinates | null; user: { role: string; email: string } | null; onClose: () => void; onReserve: () => void }) {
+  const distanceKm =
+    userLocation && p.lat !== undefined && p.lng !== undefined
+      ? getDistanceKm(userLocation, { lat: p.lat, lng: p.lng })
+      : null;
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-secondary/60 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -304,13 +399,47 @@ function ProviderDialog({ p, onClose }: { p: Provider; onClose: () => void }) {
             <Info label="Téléphone" value={p.phone} icon="📞" />
             <Info label="Statut" value={p.available ? "Disponible" : "Indisponible"} icon={p.available ? "🟢" : "🔴"} />
           </div>
-          <div className="flex gap-2 pt-2">
+          {distanceKm !== null ? (
+            <div className="rounded-3xl border border-border bg-muted/40 p-4">
+              <div className="mb-3 grid gap-2 text-sm text-secondary sm:grid-cols-2">
+                <div className="flex items-center gap-2">
+                  <span>📏</span>
+                  <span>{formatDistance(distanceKm)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>⏱️</span>
+                  <span>≈ {formatTravelTime(distanceKm)}</span>
+                </div>
+              </div>
+              <img
+                src={getStaticMapUrl(userLocation!, p)}
+                alt={`Carte de la position de ${p.name}`}
+                className="h-56 w-full rounded-2xl border border-border object-cover"
+              />
+              <p className="mt-3 text-sm text-muted-foreground">
+                Carte basée sur votre position actuelle et l'emplacement du prestataire.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Localisez votre position pour voir le trajet, la distance et l'estimation d'arrivée.
+            </p>
+          )}
+          <div className="flex flex-col gap-2 pt-2 sm:flex-row">
             <a
               href={`tel:${p.phone.replace(/\s/g, "")}`}
               className="flex-1 inline-flex h-11 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90"
             >
               📞 Contacter maintenant
             </a>
+            {user?.role === 'client' && (
+              <button
+                onClick={onReserve}
+                className="flex-1 inline-flex h-11 items-center justify-center rounded-xl border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-secondary/90"
+              >
+                Réserver ce prestataire
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -325,5 +454,48 @@ function Info({ label, value, icon }: { label: string; value: string; icon: stri
       <div className="mt-0.5 text-sm font-semibold text-secondary">{value}</div>
     </div>
   );
+}
+
+function getDistanceKm(a: Coordinates, b: Coordinates) {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng), Math.sqrt(1 - (sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng)));
+  return R * c;
+}
+
+function formatDistance(km: number) {
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}
+
+function formatTravelTime(km: number) {
+  const minutes = Math.max(10, Math.round(10 + km * 4));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+}
+
+function getMapZoom(distanceKm: number) {
+  if (distanceKm <= 1) return 15;
+  if (distanceKm <= 3) return 14;
+  if (distanceKm <= 6) return 13;
+  if (distanceKm <= 12) return 12;
+  return 11;
+}
+
+function getStaticMapUrl(userLocation: Coordinates, p: Provider) {
+  if (p.lat === undefined || p.lng === undefined) return "";
+  const distanceKm = getDistanceKm(userLocation, { lat: p.lat, lng: p.lng });
+  const zoom = getMapZoom(distanceKm);
+  const centerLat = (userLocation.lat + p.lat) / 2;
+  const centerLng = (userLocation.lng + p.lng) / 2;
+  const markers = `${userLocation.lat},${userLocation.lng},blue1|${p.lat},${p.lng},red1`;
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${centerLat},${centerLng}&zoom=${zoom}&size=600x350&markers=${markers}`;
 }
 

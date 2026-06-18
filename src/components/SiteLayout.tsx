@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { getUser, logout } from "@/lib/auth";
 
 export function SiteLayout({ children }: { children: ReactNode }) {
   return (
@@ -13,6 +14,8 @@ export function SiteLayout({ children }: { children: ReactNode }) {
 
 function Header() {
   const linkBase = "px-3 py-2 rounded-md text-sm font-medium text-foreground/80 hover:text-primary transition-colors";
+  const user = typeof window !== 'undefined' ? getUser() : null;
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -26,6 +29,14 @@ function Header() {
           <Link to="/" className={linkBase} activeProps={{ className: `${linkBase} text-primary` }} activeOptions={{ exact: true }}>Accueil</Link>
           <Link to="/prestataires" className={linkBase} activeProps={{ className: `${linkBase} text-primary` }}>Prestataires</Link>
           <Link to="/contact" className={linkBase} activeProps={{ className: `${linkBase} text-primary` }}>Contact</Link>
+          {user ? (
+            <>
+              <Link to="/dashboard" className={linkBase}>{user.name} ({user.role})</Link>
+              <button onClick={() => logout()} className="ml-2 rounded-md bg-destructive/5 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10">Déconnexion</button>
+            </>
+          ) : (
+            <Link to="/login" className={`${linkBase} border border-border bg-card`}>Connexion</Link>
+          )}
         </nav>
       </div>
     </header>
