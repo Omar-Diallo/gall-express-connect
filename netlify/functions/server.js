@@ -1,10 +1,14 @@
 exports.handler = async function(event, context) {
-  const { default: server } = await import('../../dist/server/server.js');
+  const [{ Request }, serverModule] = await Promise.all([
+    import('node:undici'),
+    import('../../dist/server/server.js'),
+  ]);
+  const server = serverModule.default ?? serverModule;
 
   const protocol = 'https';
   const host = (event.headers && (event.headers['x-forwarded-host'] || event.headers.host)) || 'localhost';
   const path = event.path || '/';
-  const query = event.rawQuery || (event.queryStringParameters ? Object.entries(event.queryStringParameters).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&') : '');
+  const query = event.rawQuery || (event.queryStringParameters ? Object.entries(event.queryStringParameters).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&') : '');
   const url = new URL(`${protocol}://${host}${path}${query ? '?' + query : ''}`);
 
   const init = {
