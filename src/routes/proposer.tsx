@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
+import { useTranslation } from "@/lib/i18n";
 
 type FormState = {
   serviceName: string;
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/proposer")({
 });
 
 function ProposerPage() {
+  const t = useTranslation();
   const [form, setForm] = useState<FormState>({
     serviceName: "",
     category: "",
@@ -44,13 +46,13 @@ function ProposerPage() {
 
   const validate = (): boolean => {
     const e: typeof errors = {};
-    if (!form.serviceName.trim() || form.serviceName.length > 150) e.serviceName = "Nom du service requis (max 150).";
-    if (!form.category) e.category = "Catégorie requise.";
-    if (!form.description.trim() || form.description.length > 2000) e.description = "Description requise (max 2000).";
-    if (!/^[0-9]+(?:[.,][0-9]+)?$/.test(form.price) || form.price.length > 15) e.price = "Prix invalide.";
-    if (!form.zone.trim() || form.zone.length > 100) e.zone = "Zone requise (max 100).";
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email) || form.email.length > 255) e.email = "E-mail invalide.";
-    if (!/^[+0-9\s]{8,20}$/.test(form.phone)) e.phone = "Téléphone invalide.";
+    if (!form.serviceName.trim() || form.serviceName.length > 150) e.serviceName = t("proposer_error_name");
+    if (!form.category) e.category = t("proposer_error_category");
+    if (!form.description.trim() || form.description.length > 2000) e.description = t("proposer_error_description");
+    if (!/^[0-9]+(?:[.,][0-9]+)?$/.test(form.price) || form.price.length > 15) e.price = t("proposer_error_price");
+    if (!form.zone.trim() || form.zone.length > 100) e.zone = t("proposer_error_zone");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email) || form.email.length > 255) e.email = t("proposer_error_email");
+    if (!/^[+0-9\s]{8,20}$/.test(form.phone)) e.phone = t("proposer_error_phone");
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -87,10 +89,8 @@ function ProposerPage() {
     <SiteLayout>
       <section className="border-b border-border bg-gradient-to-br from-primary/5 to-accent/5">
         <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
-          <h1 className="text-3xl font-extrabold text-secondary md:text-4xl">Proposer un service</h1>
-          <p className="mt-2 max-w-2xl text-muted-foreground">
-            Remplissez ce formulaire si vous êtes prestataire et souhaitez proposer un service ou un nouveau service sur GalléExpress.
-          </p>
+          <h1 className="text-3xl font-extrabold text-secondary md:text-4xl">{t("proposer_title")}</h1>
+          <p className="mt-2 max-w-2xl text-muted-foreground">{t("proposer_subtitle")}</p>
         </div>
       </section>
 
@@ -99,15 +99,15 @@ function ProposerPage() {
           <form onSubmit={onSubmit} className="lg:col-span-3 rounded-2xl border border-border bg-card p-6 shadow-card md:p-8">
             {sent && (
               <div className="mb-5 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success">
-                ✓ Votre service a bien été proposé. Il sera visible après validation.
+                {t("proposer_success")}
               </div>
             )}
             <div className="grid gap-5 md:grid-cols-2">
-              <Field label="Nom du service" error={errors.serviceName}>
+              <Field label={t("proposer_name")} error={errors.serviceName}>
                 <input value={form.serviceName} onChange={update("serviceName")} maxLength={150} className={inputCls(errors.serviceName)} placeholder="Ex : Réparation de climatiseur" />
               </Field>
 
-              <Field label="Catégorie" error={errors.category}>
+              <Field label={t("proposer_category")} error={errors.category}>
                 <select value={form.category} onChange={update("category")} className={inputCls(errors.category)}>
                   <option value="">Sélectionnez une catégorie</option>
                   <option value="BTP">BTP</option>
@@ -116,33 +116,33 @@ function ProposerPage() {
                 </select>
               </Field>
 
-              <Field label="Prix (FCFA)" error={errors.price} className="md:col-span-2">
+              <Field label={t("proposer_price")} error={errors.price} className="md:col-span-2">
                 <input value={form.price} onChange={update("price")} maxLength={15} className={inputCls(errors.price)} placeholder="Ex : 15000" />
               </Field>
 
-              <Field label="Zone" error={errors.zone}>
+              <Field label={t("proposer_zone")} error={errors.zone}>
                 <input value={form.zone} onChange={update("zone")} maxLength={100} className={inputCls(errors.zone)} placeholder="Ex : Dakar, Pikine" />
               </Field>
 
-              <Field label="Téléphone" error={errors.phone}>
+              <Field label={t("proposer_phone")} error={errors.phone}>
                 <input value={form.phone} onChange={update("phone")} maxLength={20} className={inputCls(errors.phone)} placeholder="+221 77 123 45 67" />
               </Field>
 
-              <Field label="E-mail" error={errors.email}>
+              <Field label={t("proposer_email")} error={errors.email}>
                 <input type="email" value={form.email} onChange={update("email")} maxLength={255} className={inputCls(errors.email)} placeholder="contact@monservice.sn" />
               </Field>
 
               <label className="md:col-span-2 flex items-center gap-3">
                 <input type="checkbox" checked={form.available} onChange={update('available' as keyof FormState)} className="h-4 w-4" />
-                <span className="text-sm text-muted-foreground">Disponible immédiatement</span>
+                <span className="text-sm text-muted-foreground">{t("proposer_available_label")}</span>
               </label>
 
-              <Field label="Description" error={errors.description} className="md:col-span-2">
-                <textarea value={form.description} onChange={update("description")} maxLength={2000} rows={6} className={inputCls(errors.description)} placeholder="Décrivez votre service, vos compétences et votre expérience." />
+              <Field label={t("proposer_description")} error={errors.description} className="md:col-span-2">
+                <textarea value={form.description} onChange={update("description")} maxLength={2000} rows={6} className={inputCls(errors.description)} placeholder={t("proposer_description_placeholder")} />
               </Field>
             </div>
             <button type="submit" className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-elegant transition hover:opacity-90 sm:w-auto">
-              Ajouter le service →
+              {t("proposer_submit")}
             </button>
           </form>
 
@@ -157,11 +157,11 @@ function ProposerPage() {
               </ul>
             </div>
             <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h4 className="font-semibold text-secondary">Horaires</h4>
+              <h4 className="text-sm font-semibold text-secondary">{t("contact_hours_title")}</h4>
               <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
-                <li className="flex justify-between"><span>Lun – Ven</span><span className="font-medium text-secondary">8h – 19h</span></li>
-                <li className="flex justify-between"><span>Samedi</span><span className="font-medium text-secondary">9h – 17h</span></li>
-                <li className="flex justify-between"><span>Dimanche</span><span className="font-medium text-secondary">Fermé</span></li>
+                <li className="flex justify-between"><span>{t("contact_weekday")}</span><span className="font-medium text-secondary">{t("contact_weekday_hours")}</span></li>
+                <li className="flex justify-between"><span>{t("contact_saturday")}</span><span className="font-medium text-secondary">{t("contact_saturday_hours")}</span></li>
+                <li className="flex justify-between"><span>{t("contact_sunday")}</span><span className="font-medium text-secondary">{t("contact_sunday_hours")}</span></li>
               </ul>
             </div>
           </aside>

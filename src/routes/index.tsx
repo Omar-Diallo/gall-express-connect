@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { getUser, initSeedData } from "@/lib/auth";
+import { useTranslation } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,6 +29,7 @@ function HomePage() {
 }
 
 function Hero() {
+  const t = useTranslation();
   const user = typeof window !== 'undefined' ? getUser() : null;
   const isClientLoggedIn = user?.role === 'client';
   const fallingItems = [
@@ -67,27 +69,27 @@ function Hero() {
       <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
-            <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> 500+ prestataires disponibles maintenant
+            <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" /> {t("hero_label")}
           </span>
           <h1 className="mt-6 text-4xl font-extrabold tracking-tight text-secondary md:text-6xl">
-            Trouvez rapidement le <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">prestataire</span> qu'il vous faut
+            {t("hero_title_part1")} <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{t("hero_title_highlight")}</span> {t("hero_title_part2")}
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground md:text-lg">
-            GalléExpress connecte les clients aux meilleurs professionnels près de chez eux en quelques clics.
+            {t("hero_subtitle")}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               to="/prestataires"
               className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-elegant transition hover:opacity-90 hover:-translate-y-0.5"
             >
-              Trouver un prestataire →
+              {t("hero_cta_find")}
             </Link>
             {!isClientLoggedIn && (
               <Link
                 to="/proposer"
                 className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card px-6 text-sm font-semibold text-secondary transition hover:border-primary hover:text-primary"
               >
-                Proposer mes services
+                {t("hero_cta_propose")}
               </Link>
             )}
           </div>
@@ -126,28 +128,30 @@ function Stat({ value, suffix, label }: { value: number; suffix: string; label: 
 }
 
 function Stats() {
+  const t = useTranslation();
   return (
     <section className="mx-auto max-w-6xl px-4 py-12">
       <div className="grid gap-5 md:grid-cols-3">
-        <Stat value={500} suffix="+" label="Prestataires actifs" />
-        <Stat value={2000} suffix="+" label="Missions réalisées" />
-        <Stat value={98} suffix="%" label="Satisfaction client" />
+        <Stat value={500} suffix="+" label={t("stats_providers")} />
+        <Stat value={2000} suffix="+" label={t("stats_missions")} />
+        <Stat value={98} suffix="%" label={t("stats_satisfaction")} />
       </div>
     </section>
   );
 }
 
 function Categories() {
+  const t = useTranslation();
   const items = [
-    { emoji: "🏗️", title: "BTP", desc: "Plomberie, électricité, peinture, maçonnerie." },
-    { emoji: "🛠️", title: "Réparation", desc: "Climatisation, électroménager, informatique." },
-    { emoji: "🏠", title: "Services à domicile", desc: "Ménage, jardinage, garde d'enfants." },
+    { emoji: "🏗️", title: t("category_btp"), desc: t("category_btp_desc") },
+    { emoji: "🛠️", title: t("category_repair"), desc: t("category_repair_desc") },
+    { emoji: "🏠", title: t("category_home"), desc: t("category_home_desc") },
   ];
   return (
     <section className="mx-auto max-w-6xl px-4 py-16">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-secondary md:text-4xl">Nos catégories phares</h2>
-        <p className="mt-3 text-muted-foreground">Des professionnels qualifiés pour tous vos besoins.</p>
+        <h2 className="text-3xl font-bold text-secondary md:text-4xl">{t("categories_title")}</h2>
+        <p className="mt-3 text-muted-foreground">{t("categories_subtitle")}</p>
       </div>
       <div className="mt-10 grid gap-5 md:grid-cols-3">
         {items.map((it) => (
@@ -155,7 +159,7 @@ function Categories() {
             <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-2xl">{it.emoji}</div>
             <h3 className="mt-4 text-lg font-semibold text-secondary">{it.title}</h3>
             <p className="mt-2 text-sm text-muted-foreground">{it.desc}</p>
-            <Link to="/prestataires" className="mt-4 inline-flex text-sm font-semibold text-primary group-hover:underline">Découvrir →</Link>
+            <Link to="/prestataires" className="mt-4 inline-flex text-sm font-semibold text-primary group-hover:underline">{t("category_discover")}</Link>
           </div>
         ))}
       </div>

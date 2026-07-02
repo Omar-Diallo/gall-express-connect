@@ -4,6 +4,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { getAllServices, type Service as Provider } from "@/lib/services";
 import { formatFCFA } from "@/lib/providers";
 import { getUser, type Order } from "@/lib/auth";
+import { useTranslation } from "@/lib/i18n";
 
 type Coordinates = {
   lat: number;
@@ -24,6 +25,7 @@ const filters = ["Tous", "BTP", "Réparation", "Services à domicile"] as const;
 type Filter = (typeof filters)[number];
 
 function ProvidersPage() {
+  const t = useTranslation();
   const [filter, setFilter] = useState<Filter>("Tous");
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<Provider | null>(null);
@@ -35,9 +37,7 @@ function ProvidersPage() {
 
   const locateUser = useCallback(() => {
     if (!navigator.geolocation || !window.isSecureContext) {
-      setLocationError(
-        "La géolocalisation n'est pas disponible dans ce contexte. Vérifiez que vous êtes sur HTTPS et autorisez la localisation."
-      );
+      setLocationError(t("providers_geolocation_unavailable"));
       setLocating(false);
       return;
     }
@@ -54,14 +54,25 @@ function ProvidersPage() {
         setLocating(false);
       },
       () => {
-        setLocationError(
-          "Impossible de récupérer votre position. Vérifiez les permissions de géolocalisation et rechargez la page."
-        );
+        setLocationError(t("providers_geolocation_permission_error"));
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     );
-  }, []);
+  }, [t]);
+
+  const createReservation = useCallback(
+    (provider: Provider) => {
+      if (user?.role !== 'client') {
+        setReservationMessage(t("providers_login_to_reserve"));
+        setTimeout(() => setReservationMessage(null), 4000);
+        return;
+      }
+      setReservationMessage(t("providers_reservation_created", { name: provider.name }));
+      setTimeout(() => setReservationMessage(null), 4000);
+    },
+    [t, user],
+  );
 
   const list = useMemo(() => {
     return getAllServices().filter((p) => {
@@ -76,8 +87,8 @@ function ProvidersPage() {
     <SiteLayout>
       <section className="border-b border-border bg-gradient-to-br from-primary/5 to-accent/5">
         <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
-          <h1 className="text-3xl font-extrabold text-secondary md:text-4xl">Nos prestataires</h1>
-          <p className="mt-2 text-muted-foreground">Professionnels vérifiés et notés par la communauté.</p>
+          <h1 className="text-3xl font-extrabold text-secondary md:text-4xl">{t("providers_title")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("providers_subtitle")}</p>
 
           <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center">
             <div className="relative flex-1">
@@ -85,7 +96,7 @@ function ProvidersPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher un prestataire ou une zone…"
+                placeholder={t("providers_search_placeholder")}
                 className="h-12 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </div>
@@ -93,13 +104,11 @@ function ProvidersPage() {
 
           <div className="mt-6 rounded-3xl border border-border bg-card p-5 text-sm text-secondary-foreground shadow-card sm:flex sm:items-center sm:justify-between">
             <div>
-              <p className="font-semibold text-secondary">Comparer les prestataires à partir de votre position</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Activez la localisation pour voir la distance en km et une estimation du temps d'arrivée.
-              </p>
+              <p className="font-semibold text-secondary">{t("providers_compare_title")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("providers_compare_desc")}</p>
               {userLocation && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Position détectée : {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                  {t("providers_position_detected", { lat: userLocation.lat.toFixed(4), lng: userLocation.lng.toFixed(4) })}
                 </p>
               )}
               {locationError && (
@@ -114,7 +123,7 @@ function ProvidersPage() {
               disabled={locating}
               className="mt-4 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 sm:mt-0"
             >
-              {locating ? "Localisation…" : "Localiser ma position"}
+              {locating ? t("providers_locating") : t("providers_locate_button")}
             </button>
           </div>
 
@@ -129,7 +138,13 @@ function ProvidersPage() {
                     : "border border-border bg-card text-foreground/70 hover:border-primary hover:text-primary"
                 }`}
               >
-                {f}
+                {f === "Tous"
+                  ? t("providers_filter_all")
+                  : f === "BTP"
+                  ? t("providers_filter_btp")
+                  : f === "Réparation"
+                  ? t("providers_filter_repair")
+                  : t("providers_filter_home")}
               </button>
             ))}
           </div>
@@ -138,7 +153,7 @@ function ProvidersPage() {
 
       <section className="mx-auto max-w-6xl px-4 py-10">
         {list.length === 0 ? (
-          <p className="py-16 text-center text-muted-foreground">Aucun prestataire ne correspond à votre recherche.</p>
+          <p className="py-16 text-center text-muted-foreground">{t("providers_no_match")}</p>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {list.map((p) => (
@@ -156,6 +171,7 @@ function ProvidersPage() {
 }
 
 function AiAgentConsult() {
+  const t = useTranslation();
   const [question, setQuestion] = useState("");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -190,27 +206,27 @@ function AiAgentConsult() {
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        throw new Error("Service temporairement indisponible");
+        throw new Error(t("providers_agent_error_generic"));
       }
 
       const data = await res.json();
       const outputs = data?.data?.outputs ?? null;
       if (!outputs) {
-        throw new Error("Réponse invalide de l'agent");
+        throw new Error(t("providers_agent_error_generic"));
       }
       setResult(outputs);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setError("La réponse prend trop de temps — réessayez");
+        setError(t("providers_agent_error_timeout"));
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Service temporairement indisponible");
+        setError(t("providers_agent_error_generic"));
       }
     } finally {
       setLoading(false);
     }
-  }, [question]);
+  }, [question, t]);
 
   return (
     <section className="mx-auto max-w-6xl px-4 pb-16">
@@ -218,8 +234,8 @@ function AiAgentConsult() {
         <div className="mb-6 flex items-center gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-lg text-primary-foreground">🤖</div>
           <div>
-            <h2 className="text-lg font-bold text-secondary">Consultez notre agent IA</h2>
-            <p className="text-sm text-muted-foreground">Posez vos questions sur les prestataires et services disponibles.</p>
+            <h2 className="text-lg font-bold text-secondary">{t("providers_agent_title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("providers_agent_desc")}</p>
           </div>
         </div>
 
@@ -228,7 +244,7 @@ function AiAgentConsult() {
             type="text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Posez votre question sur les prestataires et services disponibles..."
+            placeholder={t("providers_agent_placeholder")}
             className="h-12 flex-1 rounded-xl border border-border bg-background px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             disabled={loading}
           />
@@ -240,10 +256,10 @@ function AiAgentConsult() {
             {loading ? (
               <>
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-                Analyse en cours…
+                {t("providers_agent_busy")}
               </>
             ) : (
-              <>Demander à l'agent 🔧</>
+              <>{t("providers_agent_ask")}</>
             )}
           </button>
         </form>
@@ -256,7 +272,7 @@ function AiAgentConsult() {
 
         {result && (
           <div className="mt-5 rounded-xl bg-muted/60 p-5">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Réponse de l'agent</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("providers_agent_response_title")}</p>
             <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
               {typeof result === "string"
                 ? result
@@ -277,6 +293,7 @@ function AiAgentConsult() {
 }
 
 function StatusDot({ available }: { available: boolean }) {
+  const t = useTranslation();
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -284,7 +301,7 @@ function StatusDot({ available }: { available: boolean }) {
       }`}
     >
       <span className={`h-2 w-2 rounded-full ${available ? "bg-success" : "bg-destructive"} ${available ? "animate-pulse" : ""}`} />
-      {available ? "Disponible" : "Indisponible"}
+      {available ? t("providers_status_available") : t("providers_status_unavailable")}
     </span>
   );
 }
@@ -294,6 +311,7 @@ function ProviderCard({ p, userLocation, user, onOpen, onReserve }: { p: Provide
     userLocation && p.lat !== undefined && p.lng !== undefined
       ? getDistanceKm(userLocation, { lat: p.lat, lng: p.lng })
       : null;
+  const t = useTranslation();
 
   return (
     <article className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-elegant">
@@ -318,12 +336,12 @@ function ProviderCard({ p, userLocation, user, onOpen, onReserve }: { p: Provide
           <div className="flex items-center gap-2 text-muted-foreground">
             <span>🚗</span>
             <span>
-              {formatDistance(distanceKm)} · arrivée en ~{formatTravelTime(distanceKm)}
+              {formatDistance(distanceKm)} · {t("providers_card_arrival", { time: formatTravelTime(distanceKm) })}
             </span>
           </div>
         )}
         <div className="flex items-center gap-2 text-muted-foreground">
-          <span>💰</span><span>À partir de <strong className="text-secondary">{formatFCFA(p.price)}</strong></span>
+          <span>💰</span><span>{t("providers_card_price_from", { price: formatFCFA(p.price) })}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-accent">⭐</span>
@@ -337,20 +355,20 @@ function ProviderCard({ p, userLocation, user, onOpen, onReserve }: { p: Provide
           href={`tel:${p.phone.replace(/\s/g, "")}`}
           className="flex-1 inline-flex h-10 items-center justify-center rounded-lg border border-border text-sm font-semibold text-secondary transition hover:border-primary hover:text-primary"
         >
-          📞 Appeler
+          📞 {t("providers_call")}
         </a>
         <button
           onClick={onOpen}
           className="flex-1 inline-flex h-10 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground transition hover:opacity-90"
         >
-          Voir profil
+          {t("providers_view_profile")}
         </button>
         {user?.role === 'client' && (
           <button
             onClick={onReserve}
             className="flex-1 inline-flex h-10 items-center justify-center rounded-lg bg-secondary text-sm font-semibold text-secondary-foreground transition hover:opacity-90"
           >
-            Réserver
+            {t("providers_reserve")}
           </button>
         )}
       </div>
@@ -363,6 +381,7 @@ function ProviderDialog({ p, userLocation, user, onClose, onReserve }: { p: Prov
     userLocation && p.lat !== undefined && p.lng !== undefined
       ? getDistanceKm(userLocation, { lat: p.lat, lng: p.lng })
       : null;
+  const t = useTranslation();
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-secondary/60 p-4 backdrop-blur-sm" onClick={onClose}>
@@ -394,10 +413,10 @@ function ProviderDialog({ p, userLocation, user, onClose, onReserve }: { p: Prov
         <div className="space-y-4 p-6">
           <p className="text-sm text-muted-foreground">{p.description}</p>
           <div className="grid gap-3 text-sm sm:grid-cols-2">
-            <Info label="Zone" value={p.zone} icon="📍" />
-            <Info label="Tarif de départ" value={formatFCFA(p.price)} icon="💰" />
-            <Info label="Téléphone" value={p.phone} icon="📞" />
-            <Info label="Statut" value={p.available ? "Disponible" : "Indisponible"} icon={p.available ? "🟢" : "🔴"} />
+            <Info label={t("providers_dialog_zone")} value={p.zone} icon="📍" />
+            <Info label={t("providers_dialog_price_from")} value={formatFCFA(p.price)} icon="💰" />
+            <Info label={t("providers_dialog_phone")} value={p.phone} icon="📞" />
+            <Info label={t("providers_dialog_status")} value={p.available ? t("providers_dialog_available") : t("providers_dialog_unavailable")} icon={p.available ? "🟢" : "🔴"} />
           </div>
           {distanceKm !== null ? (
             <div className="rounded-3xl border border-border bg-muted/40 p-4">
@@ -416,28 +435,24 @@ function ProviderDialog({ p, userLocation, user, onClose, onReserve }: { p: Prov
                 alt={`Carte de la position de ${p.name}`}
                 className="h-56 w-full rounded-2xl border border-border object-cover"
               />
-              <p className="mt-3 text-sm text-muted-foreground">
-                Carte basée sur votre position actuelle et l'emplacement du prestataire.
-              </p>
+              <p className="mt-3 text-sm text-muted-foreground">{t("providers_dialog_find_distance")}</p>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Localisez votre position pour voir le trajet, la distance et l'estimation d'arrivée.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("providers_dialog_map_prompt")}</p>
           )}
           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
             <a
               href={`tel:${p.phone.replace(/\s/g, "")}`}
               className="flex-1 inline-flex h-11 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90"
             >
-              📞 Contacter maintenant
+              📞 {t("providers_dialog_contact_now")}
             </a>
             {user?.role === 'client' && (
               <button
                 onClick={onReserve}
                 className="flex-1 inline-flex h-11 items-center justify-center rounded-xl border border-border bg-secondary text-sm font-semibold text-secondary-foreground hover:bg-secondary/90"
               >
-                Réserver ce prestataire
+                {t("providers_dialog_reserve")}
               </button>
             )}
           </div>
